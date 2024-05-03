@@ -28,5 +28,3 @@ if "access_token" in st.session_state:
 #     st.write("Content is available for logged-in users")
 #     # Add logout button
 #     authenticator.logout()
-
-# TEST
