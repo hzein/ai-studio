@@ -1,0 +1,46 @@
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04 AS builder
+
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y git build-essential \
+    python3 python3-pip gcc wget \
+    ocl-icd-opencl-dev opencl-headers clinfo \
+    libclblast-dev libopenblas-dev \
+    && mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
+
+# setting build related env vars
+ENV CUDA_DOCKER_ARCH=all
+ENV LLAMA_CUBLAS=1
+
+# Install PyTorch and torchvision
+# RUN python3 -m pip install --user --upgrade pip torch --index-url https://download.pytorch.org/whl/cu121
+
+# Install depencencies
+RUN python3 -m pip install --user transformers tqdm scikit-learn scipy nltk numpy sentencepiece langChain chromadb fastapi uvicorn
+RUN python3 -m pip install --no-deps sentence-transformers 
+
+
+# Install llama-cpp-python (build with cuda)
+RUN CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install --user llama-cpp-python
+
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y git build-essential \
+    python3 python3-pip gcc wget \
+    ocl-icd-opencl-dev opencl-headers clinfo \
+    libclblast-dev libopenblas-dev \
+    && mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
+
+# WORKDIR /code
+
+# Copy libraries from build local path
+COPY --from=builder /root/.local /root/.local
+COPY --from=builder /tmp/*.txt /tmp/
+ENV PATH=/root/.local/bin:$PATH
+
+# Copy your application code
+# COPY ./app /code/app
+
+# Now uvicorn should be found since it's installed in the virtual environment
+# CMD ["python3", "app/test.py", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]

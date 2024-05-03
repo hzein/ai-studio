@@ -1,0 +1,9 @@
+#ignore environment file
+venv
+
+#ignore vscode related files
+.vscode
+
+#ignore folders
+models
+db
